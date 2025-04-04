@@ -54,12 +54,28 @@ class Div(BinExp):
         return self.left.calc() / self.right.calc()
 
 
+def preprocess_tokens(tokens):
+    result = []
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+
+        if token == '-' and (i == 0 or tokens[i - 1] in OPERATOR_PRECEDENCE or tokens[i - 1] == '('):
+            if i + 1 < len(tokens) and tokens[i + 1].isdigit():
+                result.append('-' + tokens[i + 1])
+                i += 2
+                continue
+        result.append(token)
+        i += 1
+    return result
+
+
 def infix_to_rpn(tokens):
     queue = []
     stack = []
     for token in tokens:
         # Token is a number
-        if token.isdigit():
+        if re.fullmatch(r'-?\d+', token):
             queue.append(token)
         # Token is operator
         elif token in OPERATOR_PRECEDENCE.keys():
@@ -85,10 +101,13 @@ def infix_to_rpn(tokens):
 
 def build_expression_tree(rpn):
     stack = []
+
     for token in rpn:
-        if token.isdigit():
-            stack.append(Num(int(token)))
+        if token not in OPERATOR_PRECEDENCE:
+            # Operand
+            stack.append(Num(float(token)))
         else:
+            # Binary operator
             right = stack.pop()
             left = stack.pop()
             if token == '+':
@@ -99,23 +118,14 @@ def build_expression_tree(rpn):
                 stack.append(Mul(left, right))
             elif token == '/':
                 stack.append(Div(left, right))
-    return stack.pop()
+
+    return stack[0]
 
 
 # implement the parser function here
 def parser(expression) -> double:
-    tokens = re.findall(PATTERN, expression)  # ✔
+    tokens = re.findall(PATTERN, expression)
+    tokens = preprocess_tokens(tokens)
     rpn = infix_to_rpn(tokens)
     expr_tree = build_expression_tree(rpn)
     return expr_tree.calc()
-
-
-def main():
-    # Running example
-    print(parser("3+4*(5-2)"))
-    print(parser("5+(4-1)*3"))
-    print(parser("10 / 2 + 3 * 2"))
-
-
-if __name__ == "__main__":
-    main()
